@@ -1,0 +1,19 @@
+{
+    "appKeys": {},
+    "capabilities": [
+        ""
+    ],
+    "companyName": "mcassano@gmail.com",
+    "longName": "SurvivalStrapProto",
+    "projectType": "native",
+    "resources": {
+        "media": []
+    },
+    "sdkVersion": "3",
+    "shortName": "SurvivalStrapProto",
+    "uuid": "6d59588c-76aa-4000-a2da-e25dae4200b3",
+    "versionLabel": "1.0",
+    "watchapp": {
+        "watchface": false
+    }
+}
