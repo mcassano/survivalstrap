@@ -32,7 +32,10 @@ static void beacon_window_load(Window *window) {
 //  s_menu_icon_image = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_MENU_ICON_1);
   window_set_background_color(window, GColorYellow);
 
-  beacon_text_layer = text_layer_create(GRect(0, 55, 144, 50));
+  Layer *window_layer = window_get_root_layer(window);
+  GRect bounds = layer_get_frame(window_layer);
+  
+  beacon_text_layer = text_layer_create(bounds);
   text_layer_set_background_color(beacon_text_layer, GColorYellow);
   text_layer_set_text_color(beacon_text_layer, GColorBlack);
   text_layer_set_text(beacon_text_layer, "SOS");
@@ -61,9 +64,13 @@ static void sg_fire_window_load(Window *window) {
 //  s_menu_icon_image = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_MENU_ICON_1);
   window_set_background_color(window, GColorRed);
 
-  sg_text_layer = text_layer_create(GRect(0, 55, 144, 50));
-  text_layer_set_text_color(beacon_text_layer, GColorWhite);
-  text_layer_set_text(sg_text_layer, "Make a Fire, dummy.");
+  Layer *window_layer = window_get_root_layer(window);
+  GRect bounds = layer_get_frame(window_layer);
+  sg_text_layer = text_layer_create(bounds);
+  
+  text_layer_set_background_color(sg_text_layer, GColorRed);
+  text_layer_set_text_color(sg_text_layer, GColorWhite);
+  text_layer_set_text(sg_text_layer, sg_fire_text);
   
   layer_add_child(window_get_root_layer(window), text_layer_get_layer(sg_text_layer));
 }
@@ -72,10 +79,15 @@ static void sg_fire_window_load(Window *window) {
 static void sg_shelter_window_load(Window *window) {
 //  s_menu_icon_image = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_MENU_ICON_1);
 
-  sg_text_layer = text_layer_create(GRect(0, 55, 144, 50));
-  text_layer_set_background_color(beacon_text_layer, GColorRed);
-  text_layer_set_text_color(beacon_text_layer, GColorWhite);
-  text_layer_set_text(sg_text_layer, "Build a shelter, dummy.");
+  window_set_background_color(window, GColorRed);
+
+  Layer *window_layer = window_get_root_layer(window);
+  GRect bounds = layer_get_frame(window_layer);
+  sg_text_layer = text_layer_create(bounds);
+  
+  text_layer_set_background_color(sg_text_layer, GColorBrass);
+  text_layer_set_text_color(sg_text_layer, GColorWhite);
+  text_layer_set_text(sg_text_layer, sg_shelter_text);
   
   layer_add_child(window_get_root_layer(window), text_layer_get_layer(sg_text_layer));
 }
@@ -127,8 +139,6 @@ void sg_menu_window_load(Window *window) {
     .num_items = NUM_SG_MENU_ITEMS,
     .items = sg_menu_items,
   };
-
-  //APP_LOG(APP_LOG_LEVEL_DEBUG, sizeof(sg_menu_items)/sizeof(sg_menu_items[0]));
   
   Layer *window_layer = window_get_root_layer(window);
   GRect bounds = layer_get_frame(window_layer);
@@ -139,7 +149,7 @@ void sg_menu_window_load(Window *window) {
 }
 
 void sg_menu_window_unload(Window *window) {
-  simple_menu_layer_destroy(s_simple_menu_layer);
+  simple_menu_layer_destroy(sg_menu_layer);
 }
 
 static void survival_guide_select_callback() {
@@ -183,7 +193,7 @@ static void main_window_load(Window *window) {
 
 void main_window_unload(Window *window) {
   simple_menu_layer_destroy(s_simple_menu_layer);
-  gbitmap_destroy(s_menu_icon_image);
+  //gbitmap_destroy(s_menu_icon_image);
 }
 
 static void init() {
