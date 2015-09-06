@@ -240,13 +240,16 @@ static void beacon_window_load(Window *window) {
   
   beacon_text_layer_status = text_layer_create(GRect(0,50,144,50));
   text_layer_set_background_color(beacon_text_layer_status, GColorClear);
-  text_layer_set_text_color(beacon_text_layer_status, GColorRed);
-  text_layer_set_text(beacon_text_layer_status, "OFF");
+  if (isBeaconing) {
+    text_layer_set_text_color(beacon_text_layer_status, GColorGreen);
+    text_layer_set_text(beacon_text_layer_status, "ON");
+  } else {
+    text_layer_set_text_color(beacon_text_layer_status, GColorRed);
+    text_layer_set_text(beacon_text_layer_status, "OFF");
+  }
   text_layer_set_font(beacon_text_layer_status, fonts_get_system_font(FONT_KEY_BITHAM_42_BOLD));
   text_layer_set_text_alignment(beacon_text_layer_status, GTextAlignmentCenter);
   layer_add_child(window_get_root_layer(window), text_layer_get_layer(beacon_text_layer_status));
-
-  //MDC
 
   beacon_text_layer_lat = text_layer_create(GRect(0,105,144,50));
   text_layer_set_background_color(beacon_text_layer_lat, GColorClear);
