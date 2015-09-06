@@ -7,7 +7,18 @@
     "longName": "SurvivalStrapProto",
     "projectType": "native",
     "resources": {
-        "media": []
+        "media": [
+          {
+            "type": "png",
+            "name": "FIRE",
+            "file": "images/FIRE.png"
+          },{
+            "type": "png",
+            "name": "FALLENTREE",
+            "file": "images/FallenTree.png"
+          }
+          
+          ]
     },
     "sdkVersion": "3",
     "shortName": "SurvivalStrapProto",

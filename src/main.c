@@ -6,6 +6,14 @@
 #define TIMEOUT_MS 1000
 #define MAX_READ_SIZE 100
 
+static ScrollLayer *s_scroll_layer;
+static TextLayer *s_scroll_text_layer;
+static char s_scroll_text[] = "Starting a fire \n\n Step 1: Gather Tinder \n \n -Grass \n -Pine Needles \n - Weed Tops and Seed Down \n -Inner bark \n -Coconut Fibers \n -Cotton Balls \n -Q Tips \n \n \n Step 2: Create Sparks \n \n -Place the tinder on a stable surface, like a log, rock, or the ground \n -Hold the Steel in one hand near the tinder \n - Pull the Ferro Rod towards you while holding the steel still so you don’t disturb the tinder. \n -When the sparks land they should create a cherry red glow \n \n \n Step 3: Add Air \n \n -GENTLY blow on the glowing ember which should create additional smoke, keep adding air until a flame is created.  \n -CAREFULLY add kindling to your fire until you have a stable campfire.  ";
+
+static ScrollLayer *s_shelter_scroll_layer;
+static TextLayer *s_shelter_text_layer;
+static char s_shelter_scroll_text[] = "Build a Shelter \n\nFallen Tree: Using a fallen tree to get started can save a lot of time, if there’s a fallen tree you can lay down under this is a great start of a shelter. \n \nLean To: If no fallen trees are available or are not large enough finding a rock or pair of small/medium trees will work \n \n Fallen Tree: \n - Step 1: Add additional medium size branches to the body the tree to add structure. \n -Step 2: Add leaves and other small branches to help add wind and rain resistance. \n -Step 3: Add small and medium size branches so that the wind does not remove your leaves and other insulation. \n\n Lean To:  \n -Step 1: Find two trees about 5-8 feet apart. \n - Step 2: Locate a medium size long 2-5 inches in diameter that is long enough to reach both trees this will be the “backbone” of our shelter \n -Step 3: You will lash this log to the trees around 4’ off the ground. \n -Step 4: Lash the log to the trees by using the cord of the watch strap, unravel the cord then create a loop in the last 6-8 inches of the cord, lay the loop over the “backbone”and bring the ends of the rope around the log and through the loop to create a clove hitch. \n -Step 5: Wrap the ends of the cords together and wrap them around the front of the tree and pull the log up to the 4’ height. \n -Step 6: Wrap the lose end around the back of the backbone log and begin to wrap it around the tree spiraling upwards \n -Step 7: Once you have 2 - 3 loops wrap the end to the bottom of the log and make 2-3 more loops around the tree under the backbone. \n -Step 8: To Finish loop the cord around the log on either side of the tree.  End with a simple overhand knot.\n -Repeat steps 5-8 on the other side. \n Step 9: Add long thin branches by laying them at a 45 degree angle keep them closely spaced together to help keep out wind and rain. \n -Step 10: Pile up leaves, dirt, snow or other materials onto the branches to help create insulation. ";
+
 static TextLayer *s_attr_text_layer;
 static TextLayer *s_raw_text_layer;
 static char s_text_buffer1[20];
@@ -210,8 +218,6 @@ static void beacon_window_load(Window *window) {
 
 
 //BEACON WINDOW
-
-
 void beacon_window_unload(Window *window) {
   text_layer_destroy(beacon_text_layer);
 }
@@ -230,6 +236,55 @@ static void beacon_select_callback(int index, void *ctx) {
 
 // BUILD FIRE WINDOW
 static void sg_fire_window_load(Window *window) {
+  Layer *window_layer = window_get_root_layer(window);
+  GRect bounds = layer_get_frame(window_layer);
+  GRect max_text_bounds = GRect(0, 66, bounds.size.w, 2000);
+
+  s_scroll_layer = scroll_layer_create(bounds);
+
+  // Create GBitmap, then set to created BitmapLayer
+  static BitmapLayer *s_background_layer;
+  static GBitmap *s_background_bitmap;
+  s_background_bitmap = gbitmap_create_with_resource(RESOURCE_ID_FIRE);
+  s_background_layer = bitmap_layer_create(GRect(15, 0, 111, 66));
+  bitmap_layer_set_bitmap(s_background_layer, s_background_bitmap);
+
+  
+  
+  // This binds the scroll layer to the window so that up and down map to scrolling
+  // You may use scroll_layer_set_callbacks to add or override interactivity
+  scroll_layer_set_click_config_onto_window(s_scroll_layer, window);
+
+  // Initialize the text layer
+  s_scroll_text_layer = text_layer_create(max_text_bounds);
+  text_layer_set_text(s_scroll_text_layer, s_scroll_text);
+
+  // Change the font to a nice readable one
+  // This is system font; you can inspect pebble_fonts.h for all system fonts
+  // or you can take a look at feature_custom_font to add your own font
+  text_layer_set_font(s_scroll_text_layer, fonts_get_system_font(FONT_KEY_GOTHIC_18));
+
+  // Trim text layer and scroll content to fit text box
+  GSize max_size = text_layer_get_content_size(s_scroll_text_layer);
+  text_layer_set_size(s_scroll_text_layer, max_size);
+  scroll_layer_set_content_size(s_scroll_layer, GSize(bounds.size.w, max_size.h + 70));
+
+  // Add the layers for display
+  scroll_layer_add_child(s_scroll_layer, text_layer_get_layer(s_scroll_text_layer));  
+  scroll_layer_add_child(s_scroll_layer, bitmap_layer_get_layer(s_background_layer));
+
+
+  layer_add_child(window_layer, scroll_layer_get_layer(s_scroll_layer));
+//   layer_add_child(window_layer, bitmap_layer_get_layer(s_background_layer));
+
+
+
+
+
+
+
+/*
+
 //  s_menu_icon_image = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_MENU_ICON_1);
   window_set_background_color(window, GColorRed);
 
@@ -242,23 +297,53 @@ static void sg_fire_window_load(Window *window) {
   text_layer_set_text(sg_text_layer, sg_fire_text);
   
   layer_add_child(window_get_root_layer(window), text_layer_get_layer(sg_text_layer));
+  */
 }
 
 // SHELTER WINDOW
 static void sg_shelter_window_load(Window *window) {
-//  s_menu_icon_image = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_MENU_ICON_1);
-
-  window_set_background_color(window, GColorRed);
-
   Layer *window_layer = window_get_root_layer(window);
   GRect bounds = layer_get_frame(window_layer);
-  sg_text_layer = text_layer_create(bounds);
+  GRect max_text_bounds = GRect(0, 50, bounds.size.w, 2000);
   
-  text_layer_set_background_color(sg_text_layer, GColorBrass);
-  text_layer_set_text_color(sg_text_layer, GColorWhite);
-  text_layer_set_text(sg_text_layer, sg_shelter_text);
+
+  // Initialize the scroll layer
+  s_shelter_scroll_layer = scroll_layer_create(bounds);
+
+  // Create GBitmap, then set to created BitmapLayer
+  static BitmapLayer *s_background_layer;
+  static GBitmap *s_background_bitmap;
+  s_background_bitmap = gbitmap_create_with_resource(RESOURCE_ID_FALLENTREE);
+  s_background_layer = bitmap_layer_create(GRect(25, 0, 96, 50));
+  bitmap_layer_set_bitmap(s_background_layer, s_background_bitmap);
+
   
-  layer_add_child(window_get_root_layer(window), text_layer_get_layer(sg_text_layer));
+  
+  // This binds the scroll layer to the window so that up and down map to scrolling
+  // You may use scroll_layer_set_callbacks to add or override interactivity
+  scroll_layer_set_click_config_onto_window(s_shelter_scroll_layer, window);
+
+  // Initialize the text layer
+  s_shelter_text_layer = text_layer_create(max_text_bounds);
+  text_layer_set_text(s_shelter_text_layer, s_shelter_scroll_text);
+
+  // Change the font to a nice readable one
+  // This is system font; you can inspect pebble_fonts.h for all system fonts
+  // or you can take a look at feature_custom_font to add your own font
+  text_layer_set_font(s_shelter_text_layer, fonts_get_system_font(FONT_KEY_GOTHIC_18));
+
+  // Trim text layer and scroll content to fit text box
+  GSize max_size = text_layer_get_content_size(s_shelter_text_layer);
+  text_layer_set_size(s_shelter_text_layer, max_size);
+  scroll_layer_set_content_size(s_shelter_scroll_layer, GSize(bounds.size.w, max_size.h + 54));
+
+  // Add the layers for display
+  scroll_layer_add_child(s_shelter_scroll_layer, text_layer_get_layer(s_shelter_text_layer));  
+  scroll_layer_add_child(s_shelter_scroll_layer, bitmap_layer_get_layer(s_background_layer));
+
+
+  layer_add_child(window_layer, scroll_layer_get_layer(s_shelter_scroll_layer));
+//   layer_add_child(window_layer, bitmap_layer_get_layer(s_background_layer));
 }
 
 void sg_content_window_unload(Window *window) {
