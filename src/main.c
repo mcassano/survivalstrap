@@ -50,242 +50,6 @@ static TextLayer *longitudeTextLayer;
 
 static TextLayer *sg_text_layer;
 
-static void sync_error_callback(DictionaryResult dict_error, AppMessageResult app_message_error, void *context) {
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "App Message Sync Error: %d", app_message_error);
-}
-
-static void sync_tuple_changed_callback(const uint32_t key, const Tuple* new_tuple, const Tuple* old_tuple, void* context) {
-  switch (key) {
-    case 7:
-      latitudeTextLayer = text_layer_create(GRect(0, 80, 144, 50));
-      text_layer_set_text(latitudeTextLayer, new_tuple->value->cstring);
-      break;
-    case 12:
-      longitudeTextLayer = text_layer_create(GRect(0, 100, 144, 50));
-      text_layer_set_text(longitudeTextLayer, new_tuple->value->cstring);
-      break;
-  }
-}
-
-static void prv_update_text(void) {
-  if (smartstrap_service_is_available(SMARTSTRAP_RAW_DATA_SERVICE_ID)) {
-    APP_LOG(APP_LOG_LEVEL_DEBUG, "Connected!");
-  } else {
-    APP_LOG(APP_LOG_LEVEL_DEBUG, "Not connected!");
-  }
-}
-
-static void prv_did_read(SmartstrapAttribute *attr, SmartstrapResult result,
-                              const uint8_t *data, size_t length) {
-  if (attr == s_attr_attribute) {
-    APP_LOG(APP_LOG_LEVEL_DEBUG, "did_read(s_attr_attribute, %d, %d)", result, length);
-    if (result == SmartstrapResultOk && length == 4) {
-      uint32_t num;
-      memcpy(&num, data, 4);
-    }
-  } else if (attr == s_raw_attribute) {
-    APP_LOG(APP_LOG_LEVEL_DEBUG, "did_read(s_raw_attribute, %d, %d)", result, length);
-    if (result == SmartstrapResultOk && length == 4) {
-      uint32_t time;
-      memcpy(&time, data, 4);
-    }
-  } else {
-    APP_LOG(APP_LOG_LEVEL_ERROR, "did_read(<%p>, %d)", attr, result);
-  }
-}
-
-static void prv_did_write(SmartstrapAttribute *attr, SmartstrapResult result) {
-  if (attr == s_attr_attribute) {
-    APP_LOG(APP_LOG_LEVEL_DEBUG, "did_write(s_attr_attribute, %d)", result);
-  } else if (attr == s_raw_attribute) {
-    APP_LOG(APP_LOG_LEVEL_DEBUG, "did_write(s_raw_attribute, %d)", result);
-  } else {
-    APP_LOG(APP_LOG_LEVEL_ERROR, "did_write(<%p>, %d)", attr, result);
-  }
-}
-
-static void prv_write_read_test_attr(void) {
-  SmartstrapResult result;
-  if (!smartstrap_service_is_available(smartstrap_attribute_get_service_id(s_attr_attribute))) {
-    APP_LOG(APP_LOG_LEVEL_DEBUG, "s_attr_attribute is not available");
-    return;
-  }
-
-  // get the write buffer
-  uint8_t *buffer = NULL;
-  size_t length = 0;
-  result = smartstrap_attribute_begin_write(s_attr_attribute, &buffer, &length);
-  if (result != SmartstrapResultOk) {
-    APP_LOG(APP_LOG_LEVEL_ERROR, "Write of s_attr_attribute failed with result %d", result);
-    return;
-  }
-
-   // write the data into the buffer
-  uint32_t num = rand() % 10000;
-  memcpy(buffer, &num, 4);
-
-  // send it off
-  result = smartstrap_attribute_end_write(s_attr_attribute, sizeof(num), true);
-  if (result != SmartstrapResultOk) {
-    APP_LOG(APP_LOG_LEVEL_ERROR, "Write of s_attr_attribute failed with result %d", result);
-  }
-}
-
-static void prv_read_raw(void) {
-  if (!smartstrap_service_is_available(smartstrap_attribute_get_service_id(s_raw_attribute))) {
-    APP_LOG(APP_LOG_LEVEL_DEBUG, "s_raw_attribute is not available");
-    return;
-  }
-  SmartstrapResult result = smartstrap_attribute_read(s_raw_attribute);
-  if (result != SmartstrapResultOk) {
-    APP_LOG(APP_LOG_LEVEL_ERROR, "Read of s_raw_attribute failed with result: %d", result);
-  }
-}
-
-static void prv_send_request(void *context) {
-  prv_write_read_test_attr();
-  prv_read_raw();
-  if (continueBeaconing) {
-    app_timer_register(5000, prv_send_request, NULL);    
-  } else {
-    
-  }
-}
-
-static void prv_availablility_status_changed(SmartstrapServiceId service_id, bool is_available) {
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "Availability for 0x%x is %d", service_id, is_available);
-  prv_update_text();
-}
-
-static void prv_notified(SmartstrapAttribute *attr) {
-  if (attr == s_attr_attribute) {
-    APP_LOG(APP_LOG_LEVEL_DEBUG, "notified(s_attr_attribute)");
-  } else if (attr == s_raw_attribute) {
-    APP_LOG(APP_LOG_LEVEL_DEBUG, "notified(s_raw_attribute)");
-  } else {
-    APP_LOG(APP_LOG_LEVEL_ERROR, "notified(<%p>)", attr);
-  }
-}
-
-static void request_gps(void *context) {
-  DictionaryIterator *iter;
-  int errorValue = app_message_outbox_begin(&iter);
-
-  if (!iter || errorValue != 0) {
-    APP_LOG(APP_LOG_LEVEL_DEBUG, "ERROR: %d", errorValue);
- 
-    APP_LOG(APP_LOG_LEVEL_DEBUG, "ERROR SENDING");
-    return;
-  }
-
-  int value = 1;
-  dict_write_int(iter, 1, &value, sizeof(int), true);
-  dict_write_end(iter);
-
-  app_message_outbox_send();
-  app_timer_register(10000, request_gps, NULL);    
-}
-
-static void enableBeacon(void) {
-  app_timer_register(1000, prv_send_request, NULL);
-  continueBeaconing = 1;
-}
-
-static void disableBeacon(void) {
-  continueBeaconing = 0;
-}
-
-void my_next_click_handler(ClickRecognizerRef recognizer, void *context) {
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "CENTER BUTTON");
-  Window *window = (Window *)context;
-  text_layer_destroy(beacon_text_layer_status);
-
-  beacon_text_layer_status = text_layer_create(GRect(0, 50, 144, 50));
-  text_layer_set_background_color(beacon_text_layer_status, GColorClear);
-  if (isBeaconing) {
-  text_layer_set_text_color(beacon_text_layer_status, GColorRed);
-    text_layer_set_text(beacon_text_layer_status, "OFF");
-    isBeaconing = 0;
-    disableBeacon();
-  } else {
-  text_layer_set_text_color(beacon_text_layer_status, GColorGreen);
-    text_layer_set_text(beacon_text_layer_status, "ON");
-    isBeaconing = 1;
-    enableBeacon();
-  }
-  // Improve the layout to be more like a watchface
-  text_layer_set_font(beacon_text_layer_status, fonts_get_system_font(FONT_KEY_BITHAM_42_BOLD));
-  text_layer_set_text_alignment(beacon_text_layer_status, GTextAlignmentCenter);
-
-  layer_add_child(window_get_root_layer(window), text_layer_get_layer(beacon_text_layer_status));
-}
-
-void click_config_provider(void *context) {
-  window_single_click_subscribe(BUTTON_ID_SELECT, (ClickHandler) my_next_click_handler);
-}
-
-static void beacon_window_load(Window *window) {
-  window_set_click_config_provider(window, (ClickConfigProvider) click_config_provider);
-
-  beacon_text_layer = text_layer_create(GRect(0, 10, 144, 50));
-  text_layer_set_background_color(beacon_text_layer, GColorClear);
-  text_layer_set_text_color(beacon_text_layer, GColorBlack);
-  text_layer_set_text(beacon_text_layer, "BEACON IS");
-
-  // Improve the layout to be more like a watchface
-  text_layer_set_font(beacon_text_layer, fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD));
-  text_layer_set_text_alignment(beacon_text_layer, GTextAlignmentCenter);
-
-  layer_add_child(window_get_root_layer(window), text_layer_get_layer(beacon_text_layer));
-  
-  beacon_text_layer_status = text_layer_create(GRect(0,50,144,50));
-  text_layer_set_background_color(beacon_text_layer_status, GColorClear);
-  if (isBeaconing) {
-    text_layer_set_text_color(beacon_text_layer_status, GColorGreen);
-    text_layer_set_text(beacon_text_layer_status, "ON");
-  } else {
-    text_layer_set_text_color(beacon_text_layer_status, GColorRed);
-    text_layer_set_text(beacon_text_layer_status, "OFF");
-  }
-  text_layer_set_font(beacon_text_layer_status, fonts_get_system_font(FONT_KEY_BITHAM_42_BOLD));
-  text_layer_set_text_alignment(beacon_text_layer_status, GTextAlignmentCenter);
-  layer_add_child(window_get_root_layer(window), text_layer_get_layer(beacon_text_layer_status));
-
-  beacon_text_layer_lat = text_layer_create(GRect(0,105,144,50));
-  text_layer_set_background_color(beacon_text_layer_lat, GColorClear);
-  text_layer_set_text_color(beacon_text_layer_lat, GColorBlack);
-  text_layer_set_text(beacon_text_layer_lat, text_layer_get_text(latitudeTextLayer));
-  text_layer_set_font(beacon_text_layer_lat, fonts_get_system_font(FONT_KEY_GOTHIC_14));
-  text_layer_set_text_alignment(beacon_text_layer_lat, GTextAlignmentCenter);
-  layer_add_child(window_get_root_layer(window), text_layer_get_layer(beacon_text_layer_lat));
-
-  beacon_text_layer_lon = text_layer_create(GRect(0,120,144,50));
-  text_layer_set_background_color(beacon_text_layer_lon, GColorClear);
-  text_layer_set_text_color(beacon_text_layer_lon, GColorBlack);
-  text_layer_set_text(beacon_text_layer_lon, text_layer_get_text(longitudeTextLayer));
-  text_layer_set_font(beacon_text_layer_lon, fonts_get_system_font(FONT_KEY_GOTHIC_14));
-  text_layer_set_text_alignment(beacon_text_layer_lon, GTextAlignmentCenter);
-  layer_add_child(window_get_root_layer(window), text_layer_get_layer(beacon_text_layer_lon));
-
-}
-
-//BEACON WINDOW
-void beacon_window_unload(Window *window) {
-  text_layer_destroy(beacon_text_layer);
-}
-
-static void beacon_select_callback(int index, void *ctx) {
-  //s_first_menu_items[index].subtitle = "You've hit select here!";
-  //layer_mark_dirty(simple_menu_layer_get_layer(s_simple_menu_layer));
-  
-  beacon_window = window_create();
-  window_set_window_handlers(beacon_window, (WindowHandlers) {
-    .load = beacon_window_load,
-    .unload = beacon_window_unload,
-  });
-  window_stack_push(beacon_window, true);
-}
-
 // BUILD FIRE WINDOW
 static void sg_fire_window_load(Window *window) {
   Layer *window_layer = window_get_root_layer(window);
@@ -368,6 +132,68 @@ static void sg_shelter_window_load(Window *window) {
   layer_add_child(window_layer, scroll_layer_get_layer(s_shelter_scroll_layer));
 }
 
+static void beacon_window_load(Window *window) {
+  window_set_click_config_provider(window, (ClickConfigProvider) click_config_provider);
+
+  beacon_text_layer = text_layer_create(GRect(0, 10, 144, 50));
+  text_layer_set_background_color(beacon_text_layer, GColorClear);
+  text_layer_set_text_color(beacon_text_layer, GColorBlack);
+  text_layer_set_text(beacon_text_layer, "BEACON IS");
+
+  // Improve the layout to be more like a watchface
+  text_layer_set_font(beacon_text_layer, fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD));
+  text_layer_set_text_alignment(beacon_text_layer, GTextAlignmentCenter);
+
+  layer_add_child(window_get_root_layer(window), text_layer_get_layer(beacon_text_layer));
+  
+  beacon_text_layer_status = text_layer_create(GRect(0,50,144,50));
+  text_layer_set_background_color(beacon_text_layer_status, GColorClear);
+  if (isBeaconing) {
+    text_layer_set_text_color(beacon_text_layer_status, GColorGreen);
+    text_layer_set_text(beacon_text_layer_status, "ON");
+  } else {
+    text_layer_set_text_color(beacon_text_layer_status, GColorRed);
+    text_layer_set_text(beacon_text_layer_status, "OFF");
+  }
+  text_layer_set_font(beacon_text_layer_status, fonts_get_system_font(FONT_KEY_BITHAM_42_BOLD));
+  text_layer_set_text_alignment(beacon_text_layer_status, GTextAlignmentCenter);
+  layer_add_child(window_get_root_layer(window), text_layer_get_layer(beacon_text_layer_status));
+
+  beacon_text_layer_lat = text_layer_create(GRect(0,105,144,50));
+  text_layer_set_background_color(beacon_text_layer_lat, GColorClear);
+  text_layer_set_text_color(beacon_text_layer_lat, GColorBlack);
+  text_layer_set_text(beacon_text_layer_lat, text_layer_get_text(latitudeTextLayer));
+  text_layer_set_font(beacon_text_layer_lat, fonts_get_system_font(FONT_KEY_GOTHIC_14));
+  text_layer_set_text_alignment(beacon_text_layer_lat, GTextAlignmentCenter);
+  layer_add_child(window_get_root_layer(window), text_layer_get_layer(beacon_text_layer_lat));
+
+  beacon_text_layer_lon = text_layer_create(GRect(0,120,144,50));
+  text_layer_set_background_color(beacon_text_layer_lon, GColorClear);
+  text_layer_set_text_color(beacon_text_layer_lon, GColorBlack);
+  text_layer_set_text(beacon_text_layer_lon, text_layer_get_text(longitudeTextLayer));
+  text_layer_set_font(beacon_text_layer_lon, fonts_get_system_font(FONT_KEY_GOTHIC_14));
+  text_layer_set_text_alignment(beacon_text_layer_lon, GTextAlignmentCenter);
+  layer_add_child(window_get_root_layer(window), text_layer_get_layer(beacon_text_layer_lon));
+
+}
+
+//BEACON WINDOW
+void beacon_window_unload(Window *window) {
+  text_layer_destroy(beacon_text_layer);
+}
+
+static void beacon_select_callback(int index, void *ctx) {
+  //s_first_menu_items[index].subtitle = "You've hit select here!";
+  //layer_mark_dirty(simple_menu_layer_get_layer(s_simple_menu_layer));
+  
+  beacon_window = window_create();
+  window_set_window_handlers(beacon_window, (WindowHandlers) {
+    .load = beacon_window_load,
+    .unload = beacon_window_unload,
+  });
+  window_stack_push(beacon_window, true);
+}
+
 void sg_content_window_unload(Window *window) {
   text_layer_destroy(sg_text_layer);
 }
@@ -422,6 +248,180 @@ void sg_menu_window_load(Window *window) {
 
 void sg_menu_window_unload(Window *window) {
   simple_menu_layer_destroy(sg_menu_layer);
+}
+
+static void prv_update_text(void) {
+  if (smartstrap_service_is_available(SMARTSTRAP_RAW_DATA_SERVICE_ID)) {
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "Connected!");
+  } else {
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "Not connected!");
+  }
+}
+
+static void prv_did_read(SmartstrapAttribute *attr, SmartstrapResult result,
+                              const uint8_t *data, size_t length) {
+  if (attr == s_attr_attribute) {
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "did_read(s_attr_attribute, %d, %d)", result, length);
+    if (result == SmartstrapResultOk && length == 4) {
+      uint32_t num;
+      memcpy(&num, data, 4);
+    }
+  } else if (attr == s_raw_attribute) {
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "did_read(s_raw_attribute, %d, %d)", result, length);
+    if (result == SmartstrapResultOk && length == 4) {
+      uint32_t time;
+      memcpy(&time, data, 4);
+    }
+  } else {
+    APP_LOG(APP_LOG_LEVEL_ERROR, "did_read(<%p>, %d)", attr, result);
+  }
+}
+
+static void prv_did_write(SmartstrapAttribute *attr, SmartstrapResult result) {
+  if (attr == s_attr_attribute) {
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "did_write(s_attr_attribute, %d)", result);
+  } else if (attr == s_raw_attribute) {
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "did_write(s_raw_attribute, %d)", result);
+  } else {
+    APP_LOG(APP_LOG_LEVEL_ERROR, "did_write(<%p>, %d)", attr, result);
+  }
+}
+
+static void prv_write_read_test_attr(void) {
+  SmartstrapResult result;
+  if (!smartstrap_service_is_available(smartstrap_attribute_get_service_id(s_attr_attribute))) {
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "s_attr_attribute is not available");
+    return;
+  }
+
+  // get the write buffer
+  uint8_t *buffer = NULL;
+  size_t length = 0;
+  result = smartstrap_attribute_begin_write(s_attr_attribute, &buffer, &length);
+  if (result != SmartstrapResultOk) {
+    APP_LOG(APP_LOG_LEVEL_ERROR, "Write of s_attr_attribute failed with result %d", result);
+    return;
+  }
+
+   // write the data into the buffer
+  memcpy(buffer, text_layer_get_text(latitudeTextLayer), strlen(text_layer_get_text(latitudeTextLayer));
+  memcpy(buffer, text_layer_get_text(longitudeTextLayer), strlen(text_layer_get_text(longitudeTextLayer));
+
+  // send it off
+  result = smartstrap_attribute_end_write(s_attr_attribute, sizeof(num), true);
+  if (result != SmartstrapResultOk) {
+    APP_LOG(APP_LOG_LEVEL_ERROR, "Write of s_attr_attribute failed with result %d", result);
+  }
+}
+
+static void prv_send_request(void *context) {
+  prv_write_read_test_attr();
+  prv_read_raw();
+  if (continueBeaconing) {
+    app_timer_register(5000, prv_send_request, NULL);    
+  } else {
+    
+  }
+}
+
+static void prv_read_raw(void) {
+  if (!smartstrap_service_is_available(smartstrap_attribute_get_service_id(s_raw_attribute))) {
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "s_raw_attribute is not available");
+    return;
+  }
+  SmartstrapResult result = smartstrap_attribute_read(s_raw_attribute);
+  if (result != SmartstrapResultOk) {
+    APP_LOG(APP_LOG_LEVEL_ERROR, "Read of s_raw_attribute failed with result: %d", result);
+  }
+}
+
+static void prv_availablility_status_changed(SmartstrapServiceId service_id, bool is_available) {
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "Availability for 0x%x is %d", service_id, is_available);
+  prv_update_text();
+}
+
+static void prv_notified(SmartstrapAttribute *attr) {
+  if (attr == s_attr_attribute) {
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "notified(s_attr_attribute)");
+  } else if (attr == s_raw_attribute) {
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "notified(s_raw_attribute)");
+  } else {
+    APP_LOG(APP_LOG_LEVEL_ERROR, "notified(<%p>)", attr);
+  }
+}
+
+static void sync_error_callback(DictionaryResult dict_error, AppMessageResult app_message_error, void *context) {
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "App Message Sync Error: %d", app_message_error);
+}
+
+static void sync_tuple_changed_callback(const uint32_t key, const Tuple* new_tuple, const Tuple* old_tuple, void* context) {
+  switch (key) {
+    case 7:
+      latitudeTextLayer = text_layer_create(GRect(0, 80, 144, 50));
+      text_layer_set_text(latitudeTextLayer, new_tuple->value->cstring);
+      break;
+    case 12:
+      longitudeTextLayer = text_layer_create(GRect(0, 100, 144, 50));
+      text_layer_set_text(longitudeTextLayer, new_tuple->value->cstring);
+      break;
+  }
+}
+
+static void request_gps(void *context) {
+  DictionaryIterator *iter;
+  int errorValue = app_message_outbox_begin(&iter);
+
+  if (!iter || errorValue != 0) {
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "ERROR: %d", errorValue);
+ 
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "ERROR SENDING");
+    return;
+  }
+
+  int value = 1;
+  dict_write_int(iter, 1, &value, sizeof(int), true);
+  dict_write_end(iter);
+
+  app_message_outbox_send();
+  app_timer_register(10000, request_gps, NULL);    
+}
+
+static void enableBeacon(void) {
+  app_timer_register(1000, prv_send_request, NULL);
+  continueBeaconing = 1;
+}
+
+static void disableBeacon(void) {
+  continueBeaconing = 0;
+}
+
+void my_next_click_handler(ClickRecognizerRef recognizer, void *context) {
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "CENTER BUTTON");
+  Window *window = (Window *)context;
+  text_layer_destroy(beacon_text_layer_status);
+
+  beacon_text_layer_status = text_layer_create(GRect(0, 50, 144, 50));
+  text_layer_set_background_color(beacon_text_layer_status, GColorClear);
+  if (isBeaconing) {
+  text_layer_set_text_color(beacon_text_layer_status, GColorRed);
+    text_layer_set_text(beacon_text_layer_status, "OFF");
+    isBeaconing = 0;
+    disableBeacon();
+  } else {
+  text_layer_set_text_color(beacon_text_layer_status, GColorGreen);
+    text_layer_set_text(beacon_text_layer_status, "ON");
+    isBeaconing = 1;
+    enableBeacon();
+  }
+  // Improve the layout to be more like a watchface
+  text_layer_set_font(beacon_text_layer_status, fonts_get_system_font(FONT_KEY_BITHAM_42_BOLD));
+  text_layer_set_text_alignment(beacon_text_layer_status, GTextAlignmentCenter);
+
+  layer_add_child(window_get_root_layer(window), text_layer_get_layer(beacon_text_layer_status));
+}
+
+void click_config_provider(void *context) {
+  window_single_click_subscribe(BUTTON_ID_SELECT, (ClickHandler) my_next_click_handler);
 }
 
 static void survival_guide_select_callback() {
